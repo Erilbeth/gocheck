@@ -17,17 +17,16 @@ import (
 //var userTimeout time.Duration
 func main() {
 
-	var filepath, period, failureThreshold string
+	timeNow := time.Now().UTC()
+	var filepath  string
 	var userTimeout time.Duration
+	var failureThreshold, period int
 
 	flag.StringVar(&filepath, "f", "", "file")
-	flag.StringVar(&period, "p", "", "period")
+	flag.IntVar(&period, "p", 1, "period")
 	flag.DurationVar(&userTimeout, "t", 2, "timeout")
-	flag.StringVar(&failureThreshold, "ft", "", "failure_threshold")
+	flag.IntVar(&failureThreshold, "ft", 10, "failure_threshold")
 	flag.Parse()
-
-	//httpClient := userTimeout * time.Second
-	//fmt.Println(httpClient)
 
 	file, err := os.Open(filepath)
 	if err != nil{
@@ -41,18 +40,54 @@ func main() {
 		line := strings.Split(scanner.Text(), " ")
 
 		// To get the port number from the urlList, len - 1 is used as position.
+		count := 0
 		if len(line) > 1 {
+
 			port := line[len(line)-1]
-			getRequest(line[0], port, userTimeout)
-			//fmt.Println(port)
+
+			for i:=1; i <= failureThreshold; i++ {
+				response := getRequest(line[0], port, userTimeout)
+				if response == "error" || response == "timeout" {
+					count++
+				}
+				fmt.Println(count)
+
+				if count == failureThreshold && response == "timeout" {
+					timeOut(timeNow, line[0], port)
+				}
+
+				if count == failureThreshold && response == "error" {
+					down(timeNow, line[0], port)
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
 		} else {
-			getRequest(line[0], "", userTimeout)
+
+			for i := 1; i <= failureThreshold; i++ {
+				response := getRequest(line[0], "", userTimeout)
+				if response == "error" || response == "timeout" {
+					count++
+				}
+				fmt.Println(count)
+
+				if count == failureThreshold && response == "timeout" {
+					timeOut(timeNow, line[0], "")
+				}
+
+				if count == failureThreshold && response == "error" {
+					down(timeNow, line[0], "")
+				}
+
+				time.Sleep(1 * time.Second)
+
+			}
 		}
 	}
 }
 
-func getRequest(url, port string, userTimeout time.Duration) {
-	timeNow := time.Now().UTC()
+func getRequest(url, port string, userTimeout time.Duration) string{
 	var (
 		httpClientTimeout = userTimeout * time.Second
 		httpClient        = &http.Client{
@@ -72,21 +107,15 @@ func getRequest(url, port string, userTimeout time.Duration) {
 	resp, err := httpClient.Get(url+":"+port)
 
 	if e, ok := err.(net.Error); ok && e.Timeout() {
-		// This was a timeout
-		//fmt.Printf("Website Down! [%v] TIMEOUT %v:%v \n", timeNow, url, port)
-		timeOut(timeNow, url, port)
-		return
+		return "timeout"
 	}
 
 	if err != nil {
-		// This was all errors but timeout
-		//fmt.Printf("Website Down! [%v] 500 %v:%v \n", timeNow, url, port)
-		down(timeNow, url, port)
-		return
+		return "error"
 	}
 
 	defer resp.Body.Close()
-	fmt.Printf("Website Up! [%v] %v %v:%v \n", timeNow, resp.StatusCode, url, port)
+	return "200"
 }
 
 
