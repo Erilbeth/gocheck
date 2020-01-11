@@ -13,11 +13,8 @@ import (
 	"time"
 )
 
-//var FilePath, Period, Failure_threshold string
-//var userTimeout time.Duration
 func main() {
 
-	timeNow := time.Now().UTC()
 	var filepath  string
 	var userTimeout time.Duration
 	var failureThreshold, period int
@@ -39,51 +36,38 @@ func main() {
 	for scanner.Scan() {
 		line := strings.Split(scanner.Text(), " ")
 
-		// To get the port number from the urlList, len - 1 is used as position.
-		count := 0
 		if len(line) > 1 {
 
 			port := line[len(line)-1]
-
-			for i:=1; i <= failureThreshold; i++ {
-				response := getRequest(line[0], port, userTimeout)
-				if response == "error" || response == "timeout" {
-					count++
-				}
-				fmt.Println(count)
-
-				if count == failureThreshold && response == "timeout" {
-					timeOut(timeNow, line[0], port)
-				}
-
-				if count == failureThreshold && response == "error" {
-					down(timeNow, line[0], port)
-				}
-
-				time.Sleep(1 * time.Second)
-			}
+			logic(failureThreshold, line[0], port, userTimeout)
 
 		} else {
 
-			for i := 1; i <= failureThreshold; i++ {
-				response := getRequest(line[0], "", userTimeout)
-				if response == "error" || response == "timeout" {
-					count++
-				}
-				fmt.Println(count)
-
-				if count == failureThreshold && response == "timeout" {
-					timeOut(timeNow, line[0], "")
-				}
-
-				if count == failureThreshold && response == "error" {
-					down(timeNow, line[0], "")
-				}
-
-				time.Sleep(1 * time.Second)
-
-			}
+			logic(failureThreshold, line[0], "", userTimeout)
 		}
+	}
+}
+
+func logic(failureThreshold int, url, port  string, userTimeout time.Duration) {
+
+	timeNow := time.Now().UTC()
+	count := 0
+	for i:=1; i <= failureThreshold; i++ {
+		response := getRequest(url, port, userTimeout)
+		if response == "error" || response == "timeout" {
+			count++
+		}
+		fmt.Println(count)
+
+		if count == failureThreshold && response == "timeout" {
+			timeOut(timeNow, url, port)
+		}
+
+		if count == failureThreshold && response == "error" {
+			down(timeNow, url, port)
+		}
+
+		time.Sleep(1 * time.Second)
 	}
 }
 
