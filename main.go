@@ -37,15 +37,13 @@ func main() {
 		line := strings.Split(scanner.Text(), " ")
 
 		if len(line) > 1 {
-
 			port := line[len(line)-1]
-			logic(failureThreshold, line[0], port, userTimeout)
-
+			go logic(failureThreshold, line[0], port, userTimeout)
 		} else {
-
-			logic(failureThreshold, line[0], "", userTimeout)
+			go logic(failureThreshold, line[0], "", userTimeout)
 		}
 	}
+	time.Sleep(10 * time.Second)
 }
 
 func logic(failureThreshold int, url, port  string, userTimeout time.Duration) {
@@ -54,9 +52,7 @@ func logic(failureThreshold int, url, port  string, userTimeout time.Duration) {
 	count := 0
 	for i:=1; i <= failureThreshold; i++ {
 		response := getRequest(url, port, userTimeout)
-		if response == "error" || response == "timeout" {
-			count++
-		}
+		count++
 		fmt.Println(count)
 
 		if count == failureThreshold && response == "timeout" {
@@ -67,6 +63,9 @@ func logic(failureThreshold int, url, port  string, userTimeout time.Duration) {
 			down(timeNow, url, port)
 		}
 
+		if count == failureThreshold && response == "200" {
+			up(timeNow, url, port)
+		}
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -99,7 +98,10 @@ func getRequest(url, port string, userTimeout time.Duration) string{
 	}
 
 	defer resp.Body.Close()
-	return "200"
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return "200"
+	}
+	return ""
 }
 
 
@@ -109,4 +111,8 @@ func timeOut(timeNow time.Time, url, port string) {
 
 func down(timeNow time.Time, url, port string) {
 	fmt.Printf("Website Down! [%v] 500 %v:%v \n", timeNow, url, port)
+}
+
+func up(timeNow time.Time, url, port string) {
+	fmt.Printf("Website Up! [%v] 200 %v:%v \n", timeNow, url, port)
 }
