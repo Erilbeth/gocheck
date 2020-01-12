@@ -16,37 +16,39 @@ import (
 func main() {
 
 	var filepath  string
-	var userTimeout time.Duration
-	var failureThreshold, period int
+	var userTimeout, period time.Duration
+	var failureThreshold  int
 
 	flag.StringVar(&filepath, "f", "", "file")
-	flag.IntVar(&period, "p", 1, "period")
+	flag.DurationVar(&period, "p", 1, "period")
 	flag.DurationVar(&userTimeout, "t", 2, "timeout")
 	flag.IntVar(&failureThreshold, "ft", 10, "failure_threshold")
 	flag.Parse()
 
-	file, err := os.Open(filepath)
-	if err != nil{
-		log.Fatal(err)
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.Split(scanner.Text(), " ")
-
-		if len(line) > 1 {
-			port := line[len(line)-1]
-			go logic(failureThreshold, line[0], port, userTimeout)
-		} else {
-			go logic(failureThreshold, line[0], "", userTimeout)
+	for {
+		file, err := os.Open(filepath)
+		if err != nil {
+			log.Fatal(err)
 		}
+
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.Split(scanner.Text(), " ")
+
+			if len(line) > 1 {
+				port := line[len(line)-1]
+				go logic(failureThreshold, line[0], port, userTimeout, period)
+			} else {
+				go logic(failureThreshold, line[0], "", userTimeout, period)
+			}
+		}
+		time.Sleep(10 * time.Second)
 	}
-	time.Sleep(10 * time.Second)
 }
 
-func logic(failureThreshold int, url, port  string, userTimeout time.Duration) {
+func logic(failureThreshold int, url, port  string, userTimeout, period time.Duration) {
 
 	timeNow := time.Now().UTC()
 	count := 0
@@ -66,7 +68,8 @@ func logic(failureThreshold int, url, port  string, userTimeout time.Duration) {
 		if count == failureThreshold && response == "200" {
 			up(timeNow, url, port)
 		}
-		time.Sleep(1 * time.Second)
+
+		time.Sleep(period * time.Second)
 	}
 }
 
